@@ -1,107 +1,63 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8;
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/IERC20.sol";
+//import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol";
-
-contract MyERC20 is IERC20 {
-    mapping(address => uint256) private _balances;
-    mapping(address => mapping(address => uint256)) private _allowances;
-    uint256 private _totalSupply;
-    string private _name;
-    string private _symbol;
+contract TokenBank {
+    address internal admin;
+    IERC20 internal token;
+    mapping(address => uint256) internal balances;
     
-    error InsufficientBalance(address addr, uint value);
-    error InvalidAddress(address addr);
-    error InvalidAllowance(address from, address to, uint value);
+    error InsufficientBalance(uint256 amount);
+    error InvalidAmount(uint256 amount);
+    error NotAdministrator();
     
-    
-    modifier OnlySufficientBalance(address addr,uint value) {
-        if (_balances[addr] < value) {
-            revert InsufficientBalance(addr, value);
+    modifier OnlySufficientBalance(uint256 amount) {
+        if (balances[msg.sender] < amount) {
+            revert InsufficientBalance(amount);
         }
         _; 
     }
 
-    modifier ValidAddress(address addr) {
-        if (addr == address(0)) {
-            revert InvalidAddress(addr);
+    modifier ValidAmount(uint256 amount) {
+        if (amount <= 0) {
+            revert InvalidAmount(amount);
         }
         _;
     }
 
-    modifier ValidAllowance(address from, address to, uint value) {
-        if (_allowances[from][to] < value) {
-            revert InvalidAllowance(from, to, value);
+    modifier OnlyAdmin(address addr) {
+        if (addr != admin) {
+            revert NotAdministrator();
         }
         _;
     }
 
-    constructor(string memory name_, string memory symbol_) {
-        _name = name_;
-        _symbol = symbol_;
-        mint(msg.sender, 10000 * 10 ** 18);
+    constructor(address _token) {
+        token = IERC20(_token);
+        admin = msg.sender;
     }
 
-    function name() public view returns (string memory) {
-        return _name;
+    function deposit(uint256 amount) external ValidAmount(amount) {
+        balances[msg.sender] += amount;
+        token.transferFrom(msg.sender, address(this), amount);
     }
 
-    function symbol() public view  returns (string memory) {
-        return _symbol;
+    function withdraw(uint256 amount) external ValidAmount(amount) OnlySufficientBalance(amount){
+        balances[msg.sender] -= amount;
+        token.transfer(msg.sender, amount);
     }
 
-    function mint(address to, uint value) public {
-        _totalSupply += value;
-        _balances[to] += value;
+    function balanceOf(address account) public view returns (uint256) {
+        return balances[account];
     }
 
-    function totalSupply() external view returns (uint256) {
-        return _totalSupply;
+    function withdrawAll() public OnlyAdmin(msg.sender) {
+         uint256 total = token.balanceOf(address(this));
+         token.transfer(admin, total);
     }
 
-
-    function balanceOf(address account) external view returns (uint256) {
-        return _balances[account];
+    function changeAdmin(address newAdmin) public OnlyAdmin(msg.sender) {
+        admin = newAdmin;
     }
-
-
-    function transfer(address to, uint256 value) external 
-        OnlySufficientBalance(msg.sender, value) 
-        ValidAddress(to)
-        returns (bool) {
-
-        _balances[msg.sender] -= value;
-        _balances[to] += value;
-        return true;
-    }
-
-
-    function allowance(address owner, address spender) external view returns (uint256) {
-        return _allowances[owner][spender];
-    }
-
-    function approve(address spender, uint256 value) external 
-        ValidAddress(spender) 
-        OnlySufficientBalance (msg.sender, value)
-        returns (bool) {
-
-        _allowances[msg.sender][spender] = value;
-        return true;
-    }
-
-    function transferFrom(address from, address to, uint256 value) external 
-        ValidAddress(from) 
-        ValidAddress(to)
-        ValidAllowance(from, to, value)
-        OnlySufficientBalance(from, value)
-        returns (bool) {
-            _balances[from] -= value;
-            _balances[to] += value;
-            _allowances[from][to] -= value;
-            return true;
-    }
-
-    
 }
-
-
