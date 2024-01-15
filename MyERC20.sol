@@ -53,6 +53,7 @@ contract MyERC20 is IERC20 {
     function mint(address to, uint value) public {
         _totalSupply += value;
         _balances[to] += value;
+        emit Transfer(address(0), to, value);
     }
 
     function totalSupply() external view returns (uint256) {
@@ -72,6 +73,7 @@ contract MyERC20 is IERC20 {
 
         _balances[msg.sender] -= value;
         _balances[to] += value;
+        emit Transfer(msg.sender, to, value);
         return true;
     }
 
@@ -86,6 +88,7 @@ contract MyERC20 is IERC20 {
         returns (bool) {
 
         _allowances[msg.sender][spender] = value;
+        emit Approval(msg.sender, spender, value);
         return true;
     }
 
@@ -98,6 +101,7 @@ contract MyERC20 is IERC20 {
             _balances[from] -= value;
             _balances[to] += value;
             _allowances[from][to] -= value;
+            emit Transfer(from, to, value);
             return true;
     }
 
